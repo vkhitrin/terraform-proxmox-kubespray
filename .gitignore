@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+# Terraform
+.terraform
+*terraform.tfstate
+.*terraform*
+*terraform.tfstate
+.terraform.lock.hcl
+# python
+.venv
+# kubespray
+ansible/artifacts
+# kubernetes related
+out

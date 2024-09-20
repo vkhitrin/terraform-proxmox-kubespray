@@ -1,0 +1,67 @@
+---
+- name: "Prepare Nodes"
+  hosts: "playground"
+  gather_facts: true
+  tasks:
+    - name: "Fail If Host Is Not Ubuntu Jammy"
+      ansible.builtin.fail:
+        msg: "Host is not Ubuntu jammy"
+      when:
+        - ansible_distribution_release != "jammy"
+    - name: "Update All apt Packages"
+      ansible.builtin.apt:
+        name: "*"
+        state: latest
+      register: apt_all_packages_update
+    - name: "Reboot Host If Kernel Was Updated"
+      ansible.builtin.reboot:
+        reboot_timeout: 100
+      when: "'NEEDRESTART-KSTA: 3' in apt_all_packages_update['stdout']"
+    - name: "Generate Dynamic Inventory For kubespray"
+      run_once: true
+      block:
+        - name: "Set First Node As Master (control plane)"
+          ansible.builtin.add_host:
+            hostname: "{{ ansible_play_hosts | sort | first }}"
+            groups:
+              - "kube_control_plane"
+              - "etcd"
+              - "k8s_cluster"
+        - name: "Set Rest Of The Nods As Workers"
+          ansible.builtin.add_host:
+            hostname: "{{ item }}"
+            groups:
+              - "kube_node"
+              - "etcd"
+              - "k8s_cluster"
+          loop: "{{ ansible_play_hosts | sort | difference([ansible_play_hosts | sort | first]) }}"
+- name: "Install Kubernetes"
+  ansible.builtin.import_playbook: kubernetes_sigs.kubespray.cluster
+- name: "Post Install"
+  hosts: "localhost"
+  become: false
+  gather_facts: false
+  vars:
+    inventory_dir: "{{ playbook_dir }}" # Workaround due to magic variable not being defined in this case
+    playground_kube_cluster: "{{ lookup('ansible.builtin.env', 'PLAYGROUND_PROXMOX_VM_PREFIX') }}"
+    playground_kubeconfig: "{{ inventory_dir }}/artifacts/{{ lookup('ansible.builtin.env', 'PLAYGROUND_PROXMOX_VM_PREFIX') }}.conf"
+  tasks:
+    - name: "Rename Fetched kubeconfig 'admin.conf' to '{{ playground_kubeconfig | basename }}'"
+      ansible.builtin.command: "mv -f {{ inventory_dir }}/artifacts/admin.conf {{ playground_kubeconfig }}"
+      args:
+        removes: "{{ inventory_dir }}/artifacts/admin.conf"
+        creates: "{{ playground_kubeconfig }}"
+    - debug:
+        var: groups['kube_control_plane']
+    - name: "Remove 'control-plane' Taint Fror Control Plane Node '{{ ansible_hostname }}'"
+      kubernetes.core.k8s_taint:
+        kubeconfig: "{{ playground_kubeconfig }}"
+        name: "{{ groups['kube_control_plane'] | first }}"
+        state: "absent"
+        taints:
+          - key: "node-role.kubernetes.io/control-plane"
+      run_once: true
+    # NOTE: (vadimk) consider using `lineinfile` module instead
+    - name: "Remove Entries From SSH Known Hosts"
+      command: "ssh-keygen -R {{ hostvars[item]['ansible_default_ipv4']['address'] }}"
+      loop: "{{ groups['k8s_cluster'] }}"

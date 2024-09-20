@@ -1,0 +1,12 @@
+---
+kube_version: "v1.25.15"
+kube_proxy_mode: "iptables"
+kube_network_plugin: flannel
+flannel_backend_type: "vxlan"
+upstream_dns_servers:
+ - 8.8.8.8
+ - 1.1.1.1
+kubeconfig_localhost: true
+helm_enabled: true
+kube_service_addresses: 10.196.0.0/16
+kube_pods_subnet: 10.244.0.0/16

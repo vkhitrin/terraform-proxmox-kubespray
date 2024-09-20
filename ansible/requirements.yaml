@@ -1,0 +1,9 @@
+---
+collections:
+  - name: "community.general"
+    version: "8.0.1"
+  - name: "kubernetes.core"
+    version: "3.0.0"
+  - name: "https://github.com/kubernetes-sigs/kubespray"
+    type: "git"
+    version: "v2.23.1"

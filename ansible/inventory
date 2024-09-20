@@ -1,0 +1,8 @@
+[k8s_cluster]
+standalone-k8c-poc ansible_host=192.168.14.170 ansible_user=ubuntu
+[etcd]
+standalone-k8c-poc ansible_host=192.168.14.170 ansible_user=ubuntu
+[kube_control_plane]
+standalone-k8c-poc ansible_host=192.168.14.170 ansible_user=ubuntu
+[kube_node]
+standalone-k8c-poc ansible_host=192.168.14.170 ansible_user=ubuntu
